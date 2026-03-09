@@ -10,6 +10,7 @@ from moomoo.common import ft_logger
 from moomoo_mcp.services.base_service import MoomooService
 from moomoo_mcp.services.market_data_service import MarketDataService
 from moomoo_mcp.services.trade_service import TradeService
+from moomoo_mcp.services.session_service import SessionService
 
 logger = logging.getLogger(__name__)
 
@@ -30,6 +31,7 @@ class AppContext:
     moomoo_service: MoomooService
     trade_service: TradeService
     market_data_service: MarketDataService
+    session_service: SessionService
 
 
 def _auto_unlock_trade(trade_service: TradeService) -> None:
@@ -78,7 +80,11 @@ async def app_lifespan(server: FastMCP) -> AsyncIterator[AppContext]:
     if security_firm:
         logger.info(f"Using security firm: {security_firm}")
 
-    trade_service = TradeService(security_firm=security_firm)
+    session_service = SessionService()
+    trade_service = TradeService(
+        security_firm=security_firm,
+        session_service=session_service
+    )
     trade_service.connect()
 
     # Auto-unlock trade if password is configured in environment
@@ -92,6 +98,7 @@ async def app_lifespan(server: FastMCP) -> AsyncIterator[AppContext]:
             moomoo_service=moomoo_service,
             trade_service=trade_service,
             market_data_service=market_data_service,
+            session_service=session_service,
         )
     finally:
         trade_service.close()
@@ -108,9 +115,25 @@ import moomoo_mcp.tools.system
 import moomoo_mcp.tools.account
 import moomoo_mcp.tools.market_data
 import moomoo_mcp.tools.trading
+import moomoo_mcp.tools.session
+import argparse
 
 def main():
     """Entry point for the MCP server."""
+    parser = argparse.ArgumentParser(description="Moomoo API MCP Server")
+    parser.add_argument("--daily-limit", type=float, help="Daily budget limit in currency.")
+    parser.add_argument("--daily-loss", type=float, help="Daily loss limit in currency.")
+    # Extract known args and pass others to mcp.run (which uses click/typer)
+    args, unknown = parser.parse_known_args()
+
+    if args.daily_limit is not None:
+        os.environ["MOOMOO_DAILY_LIMIT"] = str(args.daily_limit)
+    if args.daily_loss is not None:
+        os.environ["MOOMOO_DAILY_LOSS"] = str(args.daily_loss)
+
+    # Note: FastMCP.run() handles stdio/server startup
+    # We pass empty list to run if we parsed our own args to avoid conflicts
+    # but FastMCP might need its own flags. We'll let it handle its own.
     mcp.run()
 
 if __name__ == "__main__":

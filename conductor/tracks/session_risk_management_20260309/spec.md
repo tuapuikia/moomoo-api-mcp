@@ -1,27 +1,32 @@
 # Specification: Session Risk Management
 
 ## Goal
-Implement a local tracking system for trading sessions to enforce risk limits (budget, loss percentage) and maintain a detailed transaction history for P/L analysis.
+Implement a local tracking system for trading sessions to enforce strict risk limits and maintain a clear separation between agent-initiated and human-initiated trades.
 
 ## Core Features
-1. **Session Initialization:**
-   - Define a session budget and allowed loss percentage.
-   - Snapshot the current portfolio (ticker, quantity, cost basis/unit price) before starting automated trading.
-2. **Transaction Tracking (`transaction-state.json`):**
-   - Automatically log every trade executed by the agent.
-   - Fields: `timestamp`, `date`, `ticker`, `action`, `price`, `quantity`, `acc_id`, `p_l_realized`.
-3. **Risk Enforcement:**
-   - Calculate cumulative daily P/L from the JSON state.
-   - Automatically stop the agent from proposing or executing new trades if the daily loss limit (allowed loss percentage) is reached.
-4. **Status Reporting:**
-   - Provide a tool to print the current session's P/L, total deployed budget, and list of transactions for the day.
+1. **Session Initialization (`init_session`):**
+   - **`daily_limit`**: Total budget (buy volume) the agent is allowed to deploy in a single day.
+   - **`daily_loss`**: Maximum allowed realized loss amount (in currency) before the agent's buying capability is disabled.
+   - **Portfolio Snapshot:** Snapshot existing positions at startup. **CRITICAL:** These are "Human" stocks and must not be traded by the agent's automated logic.
+
+2. **Agent Inventory Tracking:**
+   - The system must track "Agent-owned" inventory separately from pre-existing or human-bought shares.
+   - Only shares bought by the agent during the session can be sold by the agent's automated logic.
+   - Use `transaction-state.json` to maintain this inventory.
+
+3. **Transaction Tracking (`transaction-state.json`):**
+   - Log every agent trade with `timestamp`, `date`, `ticker`, `action`, `price`, `quantity`, `acc_id`, `realized_p_l`, and `source` (AGENT/HUMAN).
+   - Track cumulative `total_buy_volume` and `total_realized_loss`.
+
+4. **Risk Enforcement & Selective Stopping:**
+   - **Hard Stop:** If `total_buy_volume >= daily_limit` OR `total_realized_loss >= daily_loss`, the agent is prohibited from placing NEW BUY orders.
+   - **Sell-Only Mode:** Even if the loss limit is reached, the agent may still propose or execute SELL orders for its *own* inventory if the price meets favorable criteria (e.g., trailing stop or profit target).
+
+5. **Reporting:**
+   - A tool to print the current session's P/L (Agent-only), remaining budget, and transaction log.
 
 ## Technical Details
-- **Persistence:** All session data must be stored in `transaction-state.json` in a local data directory.
-- **State Management:** A new `SessionService` will handle reading/writing the JSON file and calculating risk metrics.
-- **Integration:** The `TradeService` should check with the `SessionService` before executing any orders.
+- **State File:** `transaction-state.json` stores the session configuration, snapshot, and transaction history.
+- **Logic:** `SessionService` calculates available budget and current drawdown.
+- **Verification:** Before any `place_order` (BUY), the `TradeService` must verify with `SessionService` that both limits are within bounds.
 
-## Requirements
-- **Portfolio Snapshot:** Must capture unit price and count for all existing positions at session start.
-- **P/L Calculation:** Realized P/L for sells must be calculated based on the recorded entry price (either from the snapshot or subsequent buys).
-- **Daily Reset:** The tracking system should recognize a new trading day and reset/archive previous day's data if needed.

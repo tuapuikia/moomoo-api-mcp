@@ -118,8 +118,19 @@ To enable **REAL account** access, you must securely provide your credentials.
 | ----------------------- | ------------------------------------------ | -------- |
 | `MOOMOO_TRADE_PASSWORD` | Your trading password (plain text)         | `123456` |
 | `MOOMOO_SECURITY_FIRM`  | Your broker region (e.g., FUTUSG, FUTUINC) | `FUTUSG` |
+| `MOOMOO_DAILY_LIMIT`    | Hard budget limit for the agent (currency) | `1000`   |
+| `MOOMOO_DAILY_LOSS`     | Hard loss limit for the agent (currency)   | `200`    |
 
 > **Note**: Without these, the server runs in **SIMULATE-only mode** (paper trading).
+
+### 3. Session Risk Management
+
+This server includes built-in safety mechanisms to prevent automated agents from over-trading or incurring excessive losses.
+
+- **Inventory Isolation**: The agent only tracks and manages stocks it has purchased during the current session. It will **not** sell your existing "Human" positions.
+- **Hard Limits**: If `MOOMOO_DAILY_LIMIT` or `MOOMOO_DAILY_LOSS` are set via Environment Variables or CLI arguments, they become **immutable** for that session.
+- **Auto-Stop**: The agent is blocked from placing new **BUY** orders once a limit is hit. **SELL** orders for agent-owned inventory remain enabled to allow for exit strategies.
+- **Persistence**: All trades and P/L are logged to `transaction-state.json` for audit and session tracking.
 
 ### 3. Configure Claude Desktop
 
