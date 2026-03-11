@@ -125,6 +125,8 @@ def main():
     parser.add_argument("--daily-limit", type=str, help="Daily budget limit (e.g., 1000USD,500SGD).")
     parser.add_argument("--daily-loss", type=str, help="Daily loss limit (e.g., 200USD).")
     parser.add_argument("--global-limit", type=str, help="Persistent global budget limit (e.g., 5000USD).")
+    parser.add_argument("--sse", action="store_true", help="Run as SSE server over HTTP.")
+    parser.add_argument("--port", type=int, default=int(os.environ.get("PORT", 8000)), help="Port to listen on (default: 8000 or PORT env var).")
     # Extract known args and pass others to mcp.run (which uses click/typer)
     args, unknown = parser.parse_known_args()
 
@@ -135,10 +137,12 @@ def main():
     if args.global_limit is not None:
         os.environ["GLOBAL_LIMIT"] = str(args.global_limit)
 
-    # Note: FastMCP.run() handles stdio/server startup
-    # We pass empty list to run if we parsed our own args to avoid conflicts
-    # but FastMCP might need its own flags. We'll let it handle its own.
-    mcp.run()
+    if args.sse:
+        # Run as HTTP/SSE server
+        mcp.run(transport="sse", host="0.0.0.0", port=args.port)
+    else:
+        # Run as standard stdio server
+        mcp.run()
 
 if __name__ == "__main__":
     main()

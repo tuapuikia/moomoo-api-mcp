@@ -1,13 +1,13 @@
 # Implementation Plan: HTTP SSE Support and Dockerization
 
 ## Phase 1: Core SSE Support and CLI Extensions
-- [ ] Task: Add `sse` and `port` CLI arguments to `src/moomoo_mcp/server.py` and map them to `mcp.run()`.
-    - [ ] Add `--sse` and `--port` to `argparse`.
-    - [ ] Support `PORT` env var as default for `--port`.
-- [ ] Task: Implement TDD for CLI and transport switching logic.
-    - [ ] Create `tests/test_server_cli.py` to test the CLI parsing.
-    - [ ] Verify `mcp.run()` is called with the correct `transport` and `port` based on CLI/env.
-- [ ] Task: Implement logic in `src/moomoo_mcp/server.py` to handle `transport="sse"`.
+- [x] Task: Add `sse` and `port` CLI arguments to `src/moomoo_mcp/server.py` and map them to `mcp.run()`. [checkpoint: main 6987031]
+    - [x] Add `--sse` and `--port` to `argparse`.
+    - [x] Support `PORT` env var as default for `--port`.
+- [x] Task: Implement TDD for CLI and transport switching logic.
+    - [x] Create `tests/test_server_cli.py` to test the CLI parsing.
+    - [x] Verify `mcp.run()` is called with the correct `transport` and `port` based on CLI/env.
+- [x] Task: Implement logic in `src/moomoo_mcp/server.py` to handle `transport="sse"`.
 - [ ] Task: Conductor - User Manual Verification 'Phase 1: Core SSE Support' (Protocol in workflow.md)
 
 ## Phase 2: Dockerization and Environment Configuration
