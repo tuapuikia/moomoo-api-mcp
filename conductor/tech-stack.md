@@ -10,6 +10,8 @@
 ## Core Dependencies
 - **moomoo-api:** Official Moomoo Python SDK for trading and market data.
 - **pandas:** Data manipulation and analysis library.
+- **sqlalchemy:** SQL toolkit and Object Relational Mapper for persistence.
+- **sqlite:** Lightweight, disk-based database for persistent risk management.
 
 ## Testing & Linting
 - **pytest & pytest-asyncio:** Testing frameworks for synchronous and asynchronous code.
