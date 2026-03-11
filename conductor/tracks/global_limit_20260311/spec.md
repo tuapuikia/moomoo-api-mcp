@@ -1,40 +1,47 @@
-# Specification: Global Limit Tracking (Track ID: global_limit_20260311)
+# Specification: Persistent Risk Management (Track ID: global_limit_20260311)
 
 ## Overview
-Implement a persistent, multi-currency global budget (limit) for trading agents. This is a total budget that persists across sessions and is per-account. It tracks its own 'spent' amount independently of the portfolio's actual value, only replenishing when the agent's trades result in realized gains (profit).
+Implement a unified, persistent risk management system using SQLite. This replaces the current JSON-based `transaction-state.json` and in-memory session tracking. The system will manage three types of limits:
+1.  **Global Limit:** A persistent, multi-currency budget that spans sessions and only replenishes on profit.
+2.  **Daily Limit:** A multi-currency budget that resets daily.
+3.  **Daily Loss Limit:** A multi-currency realized loss threshold that resets daily.
 
 ## Functional Requirements
-1.  **Multi-Currency Persistent Limits:**
-    - Support defining multiple limits via environment variables (e.g., `GLOBAL_LIMIT=1000USD,1000SGD`) or CLI arguments (e.g., `--global-limit=1000USD,1000SGD`).
-    - The CLI argument takes precedence over the environment variable if both are provided.
-    - Store limits and their current 'spent' state in a persistent SQLite database.
-    - Limits are unique to each Moomoo Account ID.
-2.  **Spending Logic:**
-    - Every 'Buy' order placed by the agent reduces the available global limit for that account/currency by the total order value (including fees).
-    - If a buy order would exceed the remaining limit, the trade is blocked (Strict Blocking).
-3.  **Replenishment (Profit-Based):**
-    - The limit is only restored when the agent 'Sells' a position that was tracked by the global limit.
-    - If a sale results in a profit, the 'cost basis' (initial spent amount) is restored to the limit, potentially with the realized profit also being added back (up to the original cap).
-    - Selling assets does not allow the limit to exceed the 'Hard Cap' set by the environment/arguments.
-4.  **Limit Overrides (Env/Arg Sync):**
-    - The environment/argument value acts as the 'Hard Cap' for the current session.
-    - If the value changes between sessions (e.g., 1000 -> 800), the new value becomes the limit. Existing 'spent' amounts in the database are preserved.
+1.  **Unified SQLite Persistence:**
+    - Migrate all data from `transaction-state.json` to a structured SQLite database.
+    - Tables:
+        - `limits`: Stores `type` (GLOBAL, DAILY_BUDGET, DAILY_LOSS), `account_id`, `currency`, `hard_cap`, and `current_value`.
+        - `agent_inventory`: Tracks tickers, quantities, and cost basis (average price) for the agent's trades.
+        - `transactions`: A full audit trail of all agent-initiated trades and limit adjustments.
+2.  **Multi-Currency Support:**
+    - Support defining limits via environment variables or CLI arguments:
+        - `GLOBAL_LIMIT` / `--global-limit`
+        - `MOOMOO_DAILY_LIMIT` / `--daily-limit`
+        - `MOOMOO_DAILY_LOSS` / `--daily-loss`
+    - Format: `1000USD,500SGD`.
+3.  **Logic & Enforcement:**
+    - **Global Limit:** Persistent. Reduces on 'Buy', replenishes on 'Sell' (cost basis + profit).
+    - **Daily Limit:** Resets daily. Tracks total 'Buy' volume for the current day.
+    - **Daily Loss Limit:** Resets daily. Tracks total realized P/L for the current day.
+    - **Strict Blocking:** If ANY limit is exceeded for a given account/currency, the trade is blocked.
+4.  **Auto-Reset Mechanism:**
+    - On server startup or when a trade is requested, the system must check the last reset timestamp for `DAILY` limits. If the calendar day has changed, reset `current_value` to zero (for limits) or the hard cap.
 5.  **Tracking Independence:**
-    - The global limit only tracks funds it has specifically allocated for trades, not the total portfolio value retrieved from Moomoo.
+    - The system only tracks funds and assets it has specifically handled, maintaining independence from the broader portfolio.
 
 ## Non-Functional Requirements
-- **Persistence:** Use SQLite to ensure limits survive server restarts.
-- **Precision:** Use decimal/high-precision math for limit calculations.
-- **Auditability:** Log all limit changes (debits/credits) with trade IDs for debugging.
+- **Data Integrity:** Use database transactions to ensure limit updates and trade records are atomic.
+- **Performance:** SQLite is sufficient for the scale of a single-user MCP server.
+- **Auditability:** Every limit change must be traceable to a specific transaction ID.
 
 ## Acceptance Criteria
-- [ ] Agent can set a multi-currency limit via environment variable or CLI.
-- [ ] Buying assets correctly reduces the remaining limit in the DB.
-- [ ] Buying assets is blocked if the limit is insufficient.
-- [ ] Selling assets restores the limit based on profit logic.
-- [ ] Changing the configuration correctly updates the limit cap for the next session.
-- [ ] Limits are tracked independently per account ID.
+- [ ] All session state (Daily Limit/Loss) is stored in SQLite instead of JSON.
+- [ ] Global Limit persists across days and restarts.
+- [ ] Daily limits/losses correctly reset when a new day begins.
+- [ ] Agent inventory is accurately tracked in SQLite.
+- [ ] Multi-currency configurations are correctly parsed and synced with the DB.
+- [ ] Trades are blocked if any applicable limit is violated.
 
 ## Out of Scope
-- Automatic currency conversion (limits are per-currency).
-- Integration with external risk management tools beyond the internal SQLite DB.
+- Historical portfolio value tracking (outside of agent trades).
+- Automated currency conversion (FX rates).

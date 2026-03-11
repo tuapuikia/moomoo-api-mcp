@@ -1,52 +1,57 @@
-# Implementation Plan: Global Limit Tracking (Track ID: global_limit_20260311)
+# Implementation Plan: Persistent Risk Management (Track ID: global_limit_20260311)
 
-## Phase 1: Foundation & Persistence Layer
-Set up the SQLite database schema and the core service to manage global limits and their spent state.
+## Phase 1: SQLite Persistence & Migration Layer
+Establish the SQLite database and migrate existing JSON/Session logic into a unified service.
 
-- [ ] Task: Create `GlobalLimitService` for SQLite interactions.
-    - [ ] Define SQLAlchemy (or raw SQL) models for `global_limits` (account_id, currency, cap, spent) and `limit_transactions` (trade_id, amount, timestamp).
-    - [ ] Implement `get_limit(account_id, currency)` and `update_limit_cap(account_id, currency, new_cap)`.
-- [ ] Task: Write Tests for `GlobalLimitService`.
-    - [ ] Test limit retrieval and cap updates.
-    - [ ] Test persistence across service restarts (simulated).
-- [ ] Task: Implement CLI/Env parsing for `global-limit`.
-    - [ ] Update server startup logic to parse `--global-limit` and `GLOBAL_LIMIT` environment variables.
-    - [ ] Sync parsed values with the database on startup (respecting existing spent amounts).
+- [ ] Task: Create `RiskManagementService` to replace `SessionService` state tracking.
+    - [ ] Define SQLAlchemy models for `limits` (type, account_id, currency, cap, current_value, last_reset).
+    - [ ] Define models for `agent_inventory` (ticker, qty, avg_price) and `transactions`.
+- [ ] Task: Implement Migration from `transaction-state.json`.
+    - [ ] Create a utility to read existing JSON data and seed the SQLite DB.
+- [ ] Task: Implement Multi-Limit Logic in SQLite.
+    - [ ] Logic for `GLOBAL_LIMIT`, `DAILY_LIMIT`, and `DAILY_LOSS`.
+    - [ ] Support parsing and syncing Env/CLI args into the `limits` table.
+- [ ] Task: Implement Auto-Reset Logic for Daily Limits.
+    - [ ] Add a check on initialization or trade request to reset daily counters based on the current date.
+- [ ] Task: Write Tests for `RiskManagementService`.
+    - [ ] Verify that limits persist and reset correctly across simulated day boundaries.
 - [ ] Task: Conductor - User Manual Verification 'Phase 1' (Protocol in workflow.md)
 
-## Phase 2: Spending & Enforcement Logic
-Integrate the global limit check into the trade placement flow to block orders that exceed the budget.
+## Phase 2: Trade Enforcement & Spending Logic
+Integrate the risk management checks into the trade flow, replacing the session-based checks.
 
-- [ ] Task: Implement `check_and_spend_limit` in `TradeService`.
-    - [ ] Add a check before `place_order` to verify if the global limit for the account/currency is sufficient.
-    - [ ] If sufficient, debit the limit in the DB *before* placing the order (locking the funds).
-- [ ] Task: Write Tests for Spending Logic (TDD).
-    - [ ] Mock Moomoo API and verify that trades are blocked when the limit is reached.
-    - [ ] Verify that successful trades correctly debit the SQLite DB.
+- [ ] Task: Refactor `TradeService` to use `RiskManagementService`.
+    - [ ] Update `place_order` flow to check and spend from ALL applicable limits (Global & Daily).
+    - [ ] Ensure atomic updates: order placement and limit debiting must be synchronized.
+- [ ] Task: Write Tests for Enforcement Logic (TDD).
+    - [ ] Verify that a trade is blocked if any of the three limits (Global, Daily, Loss) is violated.
+    - [ ] Verify that successful trades correctly update the SQLite DB tables.
 - [ ] Task: Implement Trade Failure Rollback.
-    - [ ] If the Moomoo order placement fails, ensure the locked global limit is returned to the 'available' pool.
+    - [ ] Handle Moomoo order failure by restoring the limit in the DB.
 - [ ] Task: Conductor - User Manual Verification 'Phase 2' (Protocol in workflow.md)
 
-## Phase 3: Replenishment & Profit Tracking
-Implement logic to restore the global limit when assets are sold, based on the cost basis and realized profit.
+## Phase 3: Inventory & Replenishment Logic
+Implement logic to restore global limits and update inventory based on sale transactions.
 
-- [ ] Task: Implement `replenish_limit_on_sale` in `TradeService`.
-    - [ ] Capture the 'cost basis' of the assets being sold (requires tracking which global limit 'funded' which asset).
-    - [ ] Calculate realized profit and credit the global limit (up to the original cap).
-- [ ] Task: Write Tests for Replenishment Logic (TDD).
-    - [ ] Test sale of assets and verify correct replenishment of the global limit.
-    - [ ] Verify that replenishment never exceeds the hard cap set by the user.
-- [ ] Task: Add `get_global_limit` Tool/Resource.
-    - [ ] Expose the current state of global limits to the agent via an MCP tool or resource.
+- [ ] Task: Implement `record_sale_and_replenish` in `RiskManagementService`.
+    - [ ] Update `agent_inventory` on sale.
+    - [ ] Calculate realized profit and credit the `GLOBAL_LIMIT` for that account/currency (up to the cap).
+- [ ] Task: Write Tests for Inventory & Replenishment (TDD).
+    - [ ] Test sale transactions and verify that inventory and limits are updated correctly.
+    - [ ] Verify profit-based replenishment doesn't exceed the hard cap.
+- [ ] Task: Update the `get_status` tool/resource.
+    - [ ] Provide a consolidated view of all risk management metrics to the agent.
 - [ ] Task: Conductor - User Manual Verification 'Phase 3' (Protocol in workflow.md)
 
-## Phase 4: Audit & Final Integration
-Finalize logging, audit trails, and end-to-end verification.
+## Phase 4: Audit, Cleanup & Final Integration
+Finalize audit trails, remove old JSON code, and perform end-to-end verification.
 
-- [ ] Task: Implement Transaction Logging.
-    - [ ] Ensure every limit change is logged in the `limit_transactions` table with full context.
+- [ ] Task: Implement Comprehensive Audit Logging.
+    - [ ] Log every limit modification with the associated transaction and reason.
+- [ ] Task: Remove `transaction-state.json` and legacy session logic.
+    - [ ] Clean up `SessionService` and remove unused file-based state.
 - [ ] Task: Final End-to-End Tests.
-    - [ ] Simulate a full agent session: set limit -> buy -> sell -> check limit.
+    - [ ] Simulate a full agent session across virtual days to verify persistent and resetting limits.
 - [ ] Task: Update Documentation.
-    - [ ] Add instructions for `--global-limit` and `GLOBAL_LIMIT` env var to README.md.
+    - [ ] Add instructions for all three limit types to README.md.
 - [ ] Task: Conductor - User Manual Verification 'Phase 4' (Protocol in workflow.md)
