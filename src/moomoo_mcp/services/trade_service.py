@@ -2,6 +2,7 @@
 
 from moomoo import OpenSecTradeContext, OrderStatus, RET_OK, SecurityFirm, TrdMarket
 from moomoo_mcp.services.session_service import SessionService
+from moomoo_mcp.services.risk_management_service import RiskManagementService
 
 
 class TradeService:
@@ -13,6 +14,7 @@ class TradeService:
         port: int = 11111,
         security_firm: str | None = None,
         session_service: SessionService | None = None,
+        risk_management_service: RiskManagementService | None = None,
     ):
         """Initialize TradeService.
 
@@ -21,13 +23,15 @@ class TradeService:
             port: Port number of OpenD gateway.
             security_firm: Securities firm identifier (e.g., 'FUTUSG' for Singapore,
                 'FUTUSECURITIES' for HK). If None, no filter is applied.
-            session_service: Optional service for risk management and session tracking.
+            session_service: [Deprecated] Optional service for session tracking.
+            risk_management_service: Optional service for persistent risk management.
         """
         self.host = host
         self.port = port
         self.security_firm = security_firm
         self.trade_ctx: OpenSecTradeContext | None = None
-        self.session_service = session_service or SessionService()
+        self.risk_service = risk_management_service or RiskManagementService()
+        self.session_service = session_service # Keep for backward compatibility if needed
 
     def _convert_status_filter(
         self, status_filter_list: list[str] | None
@@ -449,25 +453,14 @@ class TradeService:
                 "trail_type and trail_value are required for trailing stop order types"
             )
 
-        # Risk Enforcement: Check session limits for BUYS
+        # Risk Enforcement: Check risk limits for BUYS
         if trd_side.upper() == "BUY":
             cost = price * qty
-            if not self.session_service.can_buy(cost):
-                status = self.session_service.get_status()
+            if not self.risk_service.can_buy(str(acc_id), code, cost):
+                status = self.risk_service.get_status(str(acc_id))
                 raise RuntimeError(
-                    f"Order blocked by risk limits. "
-                    f"Remaining budget: {status['remaining_budget']:.2f}, "
-                    f"Total P/L: {status['total_realized_p_l']:.2f}"
+                    f"Order blocked by risk limits. Status: {status}"
                 )
-        elif trd_side.upper() == "SELL":
-            # For automated selling, verify it's agent inventory
-            # (Note: This check is intended for automated callers using this service)
-            if not self.session_service.is_agent_position(code, qty):
-                # We allow it, but we won't track P/L accurately against original cost
-                # unless we want to block it. User specified "don't use user existing stock".
-                # For now, we will log a warning and let it through if manual, 
-                # but session_service.record_transaction will handle the logic.
-                pass
 
         ret, data = self.trade_ctx.place_order(
             price=price,
@@ -488,13 +481,13 @@ class TradeService:
         if ret != RET_OK:
             raise RuntimeError(f"place_order failed: {data}")
 
-        # Logging: Record successful transaction
-        self.session_service.record_transaction(
+        # Logging: Record successful transaction in persistent DB
+        self.risk_service.record_transaction(
+            account_id=str(acc_id),
             ticker=code,
             action=trd_side,
             price=price,
-            quantity=qty,
-            acc_id=acc_id
+            quantity=qty
         )
 
         records = data.to_dict("records")
