@@ -1,0 +1,13 @@
+services:
+  mcp-server:
+    image: moomoo-api-mcp
+    container_name: moomoo-mcp
+    # network_mode: host is used to allow the container to access 
+    # Moomoo OpenD gateway running on the host machine (127.0.0.1:11111).
+    network_mode: host
+    restart: unless-stopped
+    env_file:
+      - .env
+    # Note: When using network_mode: host, ports section is ignored
+    # as the container uses the host's network stack directly.
+    # The server will be accessible on the PORT defined in .env.
