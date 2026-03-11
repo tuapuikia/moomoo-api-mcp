@@ -22,6 +22,6 @@
 - [x] Task: Conductor - User Manual Verification 'Phase 2: Dockerization' (Protocol in workflow.md)
 
 ## Phase 3: Final Integration and Documentation
-- [ ] Task: Update `README.md` with instructions on how to run via Docker and connect via HTTP/SSE.
-- [ ] Task: Final end-to-end verification.
-- [ ] Task: Conductor - User Manual Verification 'Phase 3: Final Integration' (Protocol in workflow.md)
+- [x] Task: Update `README.md` with instructions on how to run via Docker and connect via HTTP/SSE.
+- [x] Task: Final end-to-end verification.
+- [x] Task: Conductor - User Manual Verification 'Phase 3: Final Integration' (Protocol in workflow.md)

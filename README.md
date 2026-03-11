@@ -82,10 +82,37 @@ moomoo-api-mcp
    uv sync
    ```
 
-3. **Run locally**:
+3. **Run locally (stdio)**:
    ```bash
    uv run moomoo-api-mcp
    ```
+
+4. **Run locally (HTTP/SSE)**:
+   ```bash
+   uv run moomoo-api-mcp --sse --port 8000
+   ```
+
+### Docker Deployment
+
+The server can be run as a Docker container, which is ideal for HTTP/SSE mode.
+
+1. **Build the image**:
+   ```bash
+   docker build -t moomoo-api-mcp .
+   ```
+
+2. **Run the container**:
+   ```bash
+   docker run -d \
+     --name moomoo-mcp \
+     -p 8000:8000 \
+     -e MOOMOO_TRADE_PASSWORD="your_password" \
+     -e MOOMOO_SECURITY_FIRM="FUTUSG" \
+     -e GLOBAL_LIMIT="5000USD" \
+     moomoo-api-mcp
+   ```
+
+> **Note**: The container defaults to SSE mode on port 8000. Ensure your **Moomoo OpenD** gateway is running on the host or is network-accessible to the container. If OpenD is on the host, you may need to use `--network="host"` or point the server to the host's IP.
 
 ---
 
