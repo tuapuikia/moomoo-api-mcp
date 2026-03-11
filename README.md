@@ -118,19 +118,25 @@ To enable **REAL account** access, you must securely provide your credentials.
 | ----------------------- | ------------------------------------------ | -------- |
 | `MOOMOO_TRADE_PASSWORD` | Your trading password (plain text)         | `123456` |
 | `MOOMOO_SECURITY_FIRM`  | Your broker region (e.g., FUTUSG, FUTUINC) | `FUTUSG` |
-| `MOOMOO_DAILY_LIMIT`    | Hard budget limit for the agent (currency) | `1000`   |
-| `MOOMOO_DAILY_LOSS`     | Hard loss limit for the agent (currency)   | `200`    |
+| `MOOMOO_DAILY_LIMIT`    | Daily budget limit (multi-currency)        | `1000USD,500SGD` |
+| `MOOMOO_DAILY_LOSS`     | Daily realized loss limit (multi-currency) | `200USD` |
+| `GLOBAL_LIMIT`          | Persistent global budget (multi-currency)  | `5000USD` |
 
 > **Note**: Without these, the server runs in **SIMULATE-only mode** (paper trading).
 
-### 3. Session Risk Management
+### 3. Persistent Risk Management
 
-This server includes built-in safety mechanisms to prevent automated agents from over-trading or incurring excessive losses.
+This server includes advanced safety mechanisms using a local SQLite database to prevent automated agents from over-trading.
 
-- **Inventory Isolation**: The agent only tracks and manages stocks it has purchased during the current session. It will **not** sell your existing "Human" positions.
-- **Hard Limits**: If `MOOMOO_DAILY_LIMIT` or `MOOMOO_DAILY_LOSS` are set via Environment Variables or CLI arguments, they become **immutable** for that session.
-- **Auto-Stop**: The agent is blocked from placing new **BUY** orders once a limit is hit. **SELL** orders for agent-owned inventory remain enabled to allow for exit strategies.
-- **Persistence**: All trades and P/L are logged to `transaction-state.json` for audit and session tracking.
+- **Unified Persistence**: All limits and inventory are stored in `moomoo_risk.db`, surviving server restarts.
+- **Limit Types**:
+    - **Global Limit**: A persistent total budget that only replenishes when the agent sells positions at a profit or break-even.
+    - **Daily Limit**: Resets every calendar day (UTC). Tracks total buy volume.
+    - **Daily Loss**: Resets every calendar day (UTC). Tracks total realized realized loss.
+- **Multi-Currency Support**: Define limits for multiple currencies simultaneously (e.g., `1000USD,500SGD`).
+- **Inventory Isolation**: The agent only tracks and manages stocks it has purchased. It will **not** sell your existing "Human" positions.
+- **Auto-Stop**: The agent is blocked from placing new **BUY** orders once ANY limit is hit.
+- **Audit Trail**: Every limit change and trade is logged in the database for full transparency.
 
 ### 3. Configure Claude Desktop
 

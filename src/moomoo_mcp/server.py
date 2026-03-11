@@ -8,9 +8,9 @@ from dataclasses import dataclass
 from mcp.server.fastmcp import FastMCP
 from moomoo.common import ft_logger
 from moomoo_mcp.services.base_service import MoomooService
+from moomoo_mcp.services.base_service import MoomooService
 from moomoo_mcp.services.market_data_service import MarketDataService
 from moomoo_mcp.services.trade_service import TradeService
-from moomoo_mcp.services.session_service import SessionService
 from moomoo_mcp.services.risk_management_service import RiskManagementService
 
 logger = logging.getLogger(__name__)
@@ -32,7 +32,6 @@ class AppContext:
     moomoo_service: MoomooService
     trade_service: TradeService
     market_data_service: MarketDataService
-    session_service: SessionService
     risk_service: RiskManagementService
 
 
@@ -83,10 +82,8 @@ async def app_lifespan(server: FastMCP) -> AsyncIterator[AppContext]:
         logger.info(f"Using security firm: {security_firm}")
 
     risk_service = RiskManagementService()
-    session_service = SessionService()
     trade_service = TradeService(
         security_firm=security_firm,
-        session_service=session_service,
         risk_management_service=risk_service
     )
     trade_service.connect()
@@ -102,7 +99,6 @@ async def app_lifespan(server: FastMCP) -> AsyncIterator[AppContext]:
             moomoo_service=moomoo_service,
             trade_service=trade_service,
             market_data_service=market_data_service,
-            session_service=session_service,
             risk_service=risk_service,
         )
     finally:

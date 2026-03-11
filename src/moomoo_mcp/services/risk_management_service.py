@@ -55,6 +55,17 @@ class RiskTransaction(Base):
     currency = Column(String, nullable=False)
     realized_p_l = Column(Float, default=0.0)
 
+class LimitTransaction(Base):
+    __tablename__ = "limit_transactions"
+    id = Column(Integer, primary_key=True)
+    account_id = Column(String, nullable=False)
+    timestamp = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    limit_type = Column(Enum(LimitType), nullable=False)
+    currency = Column(String, nullable=False)
+    change_amount = Column(Float, nullable=False) # Positive for debit, Negative for credit
+    new_spent = Column(Float, nullable=False)
+    reason = Column(String, nullable=False) # e.g., "BUY US.AAPL", "CAP_UPDATE", "REPLENISH"
+
 class RiskManagementService:
     def __init__(self, db_url: str = "sqlite:///moomoo_risk.db"):
         self.engine = create_engine(db_url)
@@ -82,6 +93,11 @@ class RiskManagementService:
                 limits[currency] = amount
         return limits
 
+    def _parse_multi_currency_env(self, key: str) -> Dict[str, float]:
+        """Read and parse environment variable."""
+        val = os.environ.get(key)
+        return self.parse_multi_currency_string(val) if val else {}
+
     def sync_limits(self, account_id: str, limit_configs: Dict[str, Dict[str, float]]):
         """
         Sync limits from environment/CLI args.
@@ -97,7 +113,16 @@ class RiskManagementService:
                         account_id=account_id, type=l_type, currency=curr
                     ).first()
                     if limit:
+                        old_cap = limit.hard_cap
                         limit.hard_cap = cap
+                        session.add(LimitTransaction(
+                            account_id=account_id,
+                            limit_type=l_type,
+                            currency=curr,
+                            change_amount=0.0,
+                            new_spent=limit.spent,
+                            reason=f"CAP_UPDATE: {old_cap} -> {cap}"
+                        ))
                     else:
                         limit = Limit(
                             account_id=account_id,
@@ -107,6 +132,14 @@ class RiskManagementService:
                             spent=0.0
                         )
                         session.add(limit)
+                        session.add(LimitTransaction(
+                            account_id=account_id,
+                            limit_type=l_type,
+                            currency=curr,
+                            change_amount=0.0,
+                            new_spent=0.0,
+                            reason=f"LIMIT_CREATED: cap={cap}"
+                        ))
             session.commit()
         finally:
             session.close()
@@ -120,8 +153,17 @@ class RiskManagementService:
         
         for limit in daily_limits:
             if limit.last_reset.date() < now.date():
+                old_spent = limit.spent
                 limit.spent = 0.0
                 limit.last_reset = now
+                session.add(LimitTransaction(
+                    account_id=account_id,
+                    limit_type=limit.type,
+                    currency=limit.currency,
+                    change_amount=-old_spent,
+                    new_spent=0.0,
+                    reason="DAILY_RESET"
+                ))
         session.flush()
 
     def get_status(self, account_id: str) -> Dict[str, Any]:
@@ -186,6 +228,14 @@ class RiskManagementService:
                 ).all()
                 for l in budget_limits:
                     l.spent += amount
+                    session.add(LimitTransaction(
+                        account_id=account_id,
+                        limit_type=l.type,
+                        currency=currency,
+                        change_amount=amount,
+                        new_spent=l.spent,
+                        reason=f"BUY {ticker}"
+                    ))
                 
                 # Update Inventory
                 inv = session.query(AgentInventory).filter_by(account_id=account_id, ticker=ticker).first()
@@ -210,15 +260,18 @@ class RiskManagementService:
                     account_id=account_id, currency=currency, type=LimitType.GLOBAL
                 ).first()
                 if global_limit:
-                    # Replenish cost basis + realized_p_l (gross proceeds)
-                    # Requirement: 'spent' amount tracks how much of the budget is currently out.
-                    # Buying increases spent. Selling decreases spent.
-                    # Gross proceeds = cost_basis + realized_p_l
                     replenishment = cost_basis + realized_p_l
-                    
-                    # We reduce 'spent' by the replenishment amount.
-                    # But 'spent' cannot go below 0 (meaning we can't exceed original cap).
+                    old_spent = global_limit.spent
                     global_limit.spent = max(0.0, global_limit.spent - replenishment)
+                    actual_change = old_spent - global_limit.spent
+                    session.add(LimitTransaction(
+                        account_id=account_id,
+                        limit_type=LimitType.GLOBAL,
+                        currency=currency,
+                        change_amount=-actual_change,
+                        new_spent=global_limit.spent,
+                        reason=f"SELL {ticker} (REPLENISH)"
+                    ))
 
                 # Update Daily Loss (if realized_p_l is negative, it increases 'spent' loss)
                 if realized_p_l < 0:
@@ -226,7 +279,16 @@ class RiskManagementService:
                         account_id=account_id, currency=currency, type=LimitType.DAILY_LOSS
                     ).first()
                     if loss_limit:
-                        loss_limit.spent += abs(realized_p_l)
+                        loss_amount = abs(realized_p_l)
+                        loss_limit.spent += loss_amount
+                        session.add(LimitTransaction(
+                            account_id=account_id,
+                            limit_type=LimitType.DAILY_LOSS,
+                            currency=currency,
+                            change_amount=loss_amount,
+                            new_spent=loss_limit.spent,
+                            reason=f"SELL {ticker} (LOSS)"
+                        ))
 
                 # Update Inventory
                 inv.qty -= quantity
@@ -269,6 +331,14 @@ class RiskManagementService:
             ).all()
             for l in limits:
                 l.spent = max(0.0, l.spent - amount)
+                session.add(LimitTransaction(
+                    account_id=account_id,
+                    limit_type=l.type,
+                    currency=currency,
+                    change_amount=-amount,
+                    new_spent=l.spent,
+                    reason=f"ROLLBACK BUY {ticker}"
+                ))
             
             # 2. Revert Inventory
             inv = session.query(AgentInventory).filter_by(account_id=account_id, ticker=ticker).first()
