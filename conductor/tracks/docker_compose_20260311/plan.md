@@ -17,7 +17,7 @@
     - [x] Update `server.py` CLI and run logic.
     - [x] Update `Dockerfile` ENTRYPOINT.
     - [x] Update `tests/test_server_cli.py`.
-- [ ] Task: Conductor - User Manual Verification 'Phase 2: Persistence' (Protocol in workflow.md)
+- [x] Task: Conductor - User Manual Verification 'Phase 2: Persistence' (Protocol in workflow.md) [checkpoint: main cab3e7c]
 
 ## Phase 3: Healthchecks and Documentation
 - [ ] Task: Add a `healthcheck` block to `docker-compose.yml` using `curl`.
