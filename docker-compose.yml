@@ -8,6 +8,9 @@ services:
     restart: unless-stopped
     env_file:
       - .env
+    volumes:
+      - ./moomoo_risk.db:/app/moomoo_risk.db
+      - ./logs:/root/.com.moomoo.OpenD
     # Note: When using network_mode: host, ports section is ignored
     # as the container uses the host's network stack directly.
     # The server will be accessible on the PORT defined in .env.
