@@ -1,0 +1,37 @@
+# Local state and databases
+*.db
+*.db-journal
+*.sqlite
+
+# Git
+.git
+.gitignore
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Project configuration
+.agent/
+.opencode/
+conductor/
+openspec/
+AGENTS.md
+SECURITY_AUDIT_REPORT.md
+
+# Build and dependencies
+uv.lock
+.uv_cache/
+.pip_packages/
+
+# Test files
+tests/
+verify_limits.py
+simulate_init.py
+test_overlimit.py
+final_verify.py

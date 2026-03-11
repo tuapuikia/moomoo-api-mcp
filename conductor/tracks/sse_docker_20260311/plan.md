@@ -11,15 +11,15 @@
 - [ ] Task: Conductor - User Manual Verification 'Phase 1: Core SSE Support' (Protocol in workflow.md)
 
 ## Phase 2: Dockerization and Environment Configuration
-- [ ] Task: Create `.dockerignore` to exclude local state, tests, and sensitive files.
-    - [ ] Exclude `moomoo_risk.db`, `.git`, `tests/`, `__pycache__`, etc.
-- [ ] Task: Create `Dockerfile` based on `python:3.14-rc-slim`.
-    - [ ] Install dependencies from `pyproject.toml`.
-    - [ ] Set `ENV` defaults (e.g., `PORT=8000`).
-    - [ ] CMD: Start server in SSE mode by default.
-- [ ] Task: Verify environment variable propagation in the container.
-    - [ ] Run container with a mock `MOOMOO_DAILY_LIMIT` and check if server parses it correctly.
-- [ ] Task: Conductor - User Manual Verification 'Phase 2: Dockerization' (Protocol in workflow.md)
+- [x] Task: Create `.dockerignore` to exclude local state, tests, and sensitive files.
+    - [x] Exclude `moomoo_risk.db`, `.git`, `tests/`, `__pycache__`, etc.
+- [x] Task: Create `Dockerfile` based on `python:3.14-rc-slim`.
+    - [x] Install dependencies from `pyproject.toml`.
+    - [x] Set `ENV` defaults (e.g., `PORT=8000`).
+    - [x] CMD: Start server in SSE mode by default.
+- [x] Task: Verify environment variable propagation in the container.
+    - [x] Run container with a mock `MOOMOO_DAILY_LIMIT` and check if server parses it correctly.
+- [x] Task: Conductor - User Manual Verification 'Phase 2: Dockerization' (Protocol in workflow.md)
 
 ## Phase 3: Final Integration and Documentation
 - [ ] Task: Update `README.md` with instructions on how to run via Docker and connect via HTTP/SSE.
