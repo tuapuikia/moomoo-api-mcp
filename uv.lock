@@ -554,6 +554,10 @@ dev = [
     { name = "pytest-asyncio" },
     { name = "ruff" },
 ]
+sse = [
+    { name = "starlette" },
+    { name = "uvicorn" },
+]
 
 [package.dev-dependencies]
 dev = [
@@ -571,8 +575,10 @@ requires-dist = [
     { name = "pytest-asyncio", marker = "extra == 'dev'", specifier = ">=0.23.0" },
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.4.0" },
     { name = "sqlalchemy", specifier = ">=2.0.48" },
+    { name = "starlette", marker = "extra == 'sse'", specifier = ">=0.35.0" },
+    { name = "uvicorn", marker = "extra == 'sse'", specifier = ">=0.27.0" },
 ]
-provides-extras = ["dev"]
+provides-extras = ["sse", "dev"]
 
 [package.metadata.requires-dev]
 dev = [

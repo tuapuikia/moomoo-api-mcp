@@ -1,7 +1,6 @@
 """Trade service for managing Moomoo trading context and account operations."""
 
 from moomoo import OpenSecTradeContext, OrderStatus, RET_OK, SecurityFirm, TrdMarket
-from moomoo_mcp.services.session_service import SessionService
 from moomoo_mcp.services.risk_management_service import RiskManagementService
 
 
@@ -13,7 +12,6 @@ class TradeService:
         host: str = "127.0.0.1",
         port: int = 11111,
         security_firm: str | None = None,
-        session_service: SessionService | None = None,
         risk_management_service: RiskManagementService | None = None,
     ):
         """Initialize TradeService.
@@ -23,7 +21,6 @@ class TradeService:
             port: Port number of OpenD gateway.
             security_firm: Securities firm identifier (e.g., 'FUTUSG' for Singapore,
                 'FUTUSECURITIES' for HK). If None, no filter is applied.
-            session_service: [Deprecated] Optional service for session tracking.
             risk_management_service: Optional service for persistent risk management.
         """
         self.host = host
@@ -31,7 +28,6 @@ class TradeService:
         self.security_firm = security_firm
         self.trade_ctx: OpenSecTradeContext | None = None
         self.risk_service = risk_management_service or RiskManagementService()
-        self.session_service = session_service # Keep for backward compatibility if needed
 
     def _convert_status_filter(
         self, status_filter_list: list[str] | None

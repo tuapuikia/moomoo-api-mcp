@@ -11,7 +11,8 @@ RUN apk add --no-cache \
     g++ \
     musl-dev \
     libstdc++ \
-    linux-headers
+    linux-headers \
+    curl
 
 # Install uv for fast package management
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/

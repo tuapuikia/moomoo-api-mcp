@@ -162,3 +162,22 @@ def test_cap_reduction_preserves_spent(risk_service):
     
     # Cannot buy more
     assert risk_service.can_buy(acc_id, "US.AAPL", 1.0) is False
+
+def test_audit_logging(risk_service):
+    from moomoo_mcp.services.risk_management_service import LimitTransaction
+    acc_id = 12345
+    risk_service.sync_limits(acc_id, {"GLOBAL": {"USD": 1000.0}})
+    
+    # Buy
+    risk_service.record_transaction(acc_id, "US.AAPL", "BUY", 100.0, 1)
+    
+    session = risk_service._get_session()
+    logs = session.query(LimitTransaction).filter_by(account_id=str(acc_id)).all()
+    # 1. LIMIT_CREATED
+    # 2. BUY US.AAPL (GLOBAL)
+    # (Note: if sync_limits added more, there might be more)
+    assert len(logs) >= 2
+    reasons = [l.reason for l in logs]
+    assert any("LIMIT_CREATED" in r for r in reasons)
+    assert any("BUY US.AAPL" in r for r in reasons)
+    session.close()

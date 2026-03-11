@@ -1,8 +1,0 @@
-{
-  "track_id": "global_limit_20260311",
-  "type": "feature",
-  "status": "new",
-  "created_at": "2026-03-11T05:40:00Z",
-  "updated_at": "2026-03-11T05:55:00Z",
-  "description": "Implement a persistent, SQLite-based Risk Management system. This includes the new multi-currency 'global-limit' as well as migrating existing 'daily-limit' and 'daily-loss' tracking from JSON to SQLite with automated daily resets."
-}

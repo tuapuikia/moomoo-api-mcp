@@ -96,3 +96,8 @@ debug.log
 
 # Skills
 .agent/skills/
+/moomoo_risk.db
+/final_verify.py
+/simulate_init.py
+/test_overlimit.py
+/verify_limits.py
