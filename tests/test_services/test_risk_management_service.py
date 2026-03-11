@@ -144,3 +144,21 @@ def test_strict_blocking(risk_service):
     
     # Cannot buy 200 more
     assert risk_service.can_buy(acc_id, "US.AAPL", 200.0) is False
+
+def test_cap_reduction_preserves_spent(risk_service):
+    acc_id = 12345
+    risk_service.sync_limits(acc_id, {"GLOBAL": {"USD": 1000.0}})
+    
+    # Spend 900
+    risk_service.record_transaction(acc_id, "US.AAPL", "BUY", 900.0, 1)
+    
+    # Reduce cap to 800
+    risk_service.sync_limits(acc_id, {"GLOBAL": {"USD": 800.0}})
+    
+    status = risk_service.get_status(acc_id)
+    assert status["GLOBAL"]["USD"]["cap"] == 800.0
+    assert status["GLOBAL"]["USD"]["spent"] == 900.0
+    assert status["GLOBAL"]["USD"]["remaining"] == 0.0
+    
+    # Cannot buy more
+    assert risk_service.can_buy(acc_id, "US.AAPL", 1.0) is False
