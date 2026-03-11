@@ -2,10 +2,10 @@
 
 ## Phase 1: Environment and Compose Scaffold
 - [x] Task: Create `.env.example` with all supported environment variables and documentation. [43b392d]
-- [ ] Task: Create the initial `docker-compose.yml` file.
-    - [ ] Define the `mcp-server` service using the `moomoo-api-mcp` image.
-    - [ ] Implement `network_mode: host` for gateway access.
-    - [ ] Add `env_file` reference to `.env`.
+- [x] Task: Create the initial `docker-compose.yml` file. [33fc06d]
+    - [x] Define the `mcp-server` service using the `moomoo-api-mcp` image.
+    - [x] Implement `network_mode: host` for gateway access.
+    - [x] Add `env_file` reference to `.env`.
 - [ ] Task: Conductor - User Manual Verification 'Phase 1: Scaffold' (Protocol in workflow.md)
 
 ## Phase 2: Persistence and Logging Configuration
