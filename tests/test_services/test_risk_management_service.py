@@ -88,7 +88,16 @@ def test_migration_from_json(tmp_path):
         "inventory": {
             "US.AAPL": {"qty": 10, "avg_price": 150.0}
         },
-        "transactions": []
+        "transactions": [
+            {
+                "timestamp": "2026-03-10T10:00:00",
+                "ticker": "US.AAPL",
+                "action": "BUY",
+                "price": 150.0,
+                "quantity": 10,
+                "currency": "USD"
+            }
+        ]
     }
     with open(json_path, "w") as f:
         json.dump(old_state, f)
@@ -107,6 +116,15 @@ def test_migration_from_json(tmp_path):
     inv = service.get_inventory(12345)
     assert inv["US.AAPL"]["qty"] == 10
     assert inv["US.AAPL"]["avg_price"] == 150.0
+
+    # Verify transactions
+    from moomoo_mcp.services.risk_management_service import RiskTransaction
+    session = service._get_session()
+    txs = session.query(RiskTransaction).all()
+    assert len(txs) == 1
+    assert txs[0].ticker == "US.AAPL"
+    assert txs[0].timestamp == datetime.fromisoformat("2026-03-10T10:00:00")
+    session.close()
 
 def test_strict_blocking(risk_service):
     acc_id = 12345

@@ -259,8 +259,6 @@ class RiskManagementService:
                 session.add(limit)
             
             for curr, cap in daily_losses.items():
-                # In old JSON, p_ls is realized P/L (positive = profit). 
-                # In new model, DAILY_LOSS spent is absolute realized loss.
                 realized_pl = p_ls.get(curr, 0.0)
                 spent = abs(realized_pl) if realized_pl < 0 else 0.0
                 limit = Limit(account_id=acc_id, type=LimitType.DAILY_LOSS, currency=curr, hard_cap=cap, spent=spent)
@@ -276,6 +274,24 @@ class RiskManagementService:
                     avg_price=inv_data["avg_price"]
                 )
                 session.add(inv)
+
+            # Migrate Transactions
+            transactions = data.get("transactions", [])
+            for tx_data in transactions:
+                # Parse timestamp if available, else use now
+                ts_str = tx_data.get("timestamp")
+                ts = datetime.fromisoformat(ts_str) if ts_str else datetime.now(timezone.utc)
+                tx = RiskTransaction(
+                    account_id=acc_id,
+                    timestamp=ts,
+                    ticker=tx_data["ticker"],
+                    action=tx_data["action"],
+                    price=tx_data["price"],
+                    quantity=tx_data["quantity"],
+                    currency=tx_data["currency"],
+                    realized_p_l=tx_data.get("realized_p_l", 0.0)
+                )
+                session.add(tx)
 
             session.commit()
         finally:
