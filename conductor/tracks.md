@@ -7,5 +7,5 @@ This file tracks all major tracks for the project. Each track has its own detail
 
 ---
 
-- [ ] **Track: Persistent Risk Management**
+- [x] **Track: Persistent Risk Management**
 *Link: [./tracks/global_limit_20260311/](./tracks/global_limit_20260311/)*
