@@ -11,6 +11,7 @@ from moomoo_mcp.services.base_service import MoomooService
 from moomoo_mcp.services.market_data_service import MarketDataService
 from moomoo_mcp.services.trade_service import TradeService
 from moomoo_mcp.services.session_service import SessionService
+from moomoo_mcp.services.risk_management_service import RiskManagementService
 
 logger = logging.getLogger(__name__)
 
@@ -32,6 +33,7 @@ class AppContext:
     trade_service: TradeService
     market_data_service: MarketDataService
     session_service: SessionService
+    risk_service: RiskManagementService
 
 
 def _auto_unlock_trade(trade_service: TradeService) -> None:
@@ -80,10 +82,12 @@ async def app_lifespan(server: FastMCP) -> AsyncIterator[AppContext]:
     if security_firm:
         logger.info(f"Using security firm: {security_firm}")
 
+    risk_service = RiskManagementService()
     session_service = SessionService()
     trade_service = TradeService(
         security_firm=security_firm,
-        session_service=session_service
+        session_service=session_service,
+        risk_management_service=risk_service
     )
     trade_service.connect()
 
@@ -99,6 +103,7 @@ async def app_lifespan(server: FastMCP) -> AsyncIterator[AppContext]:
             trade_service=trade_service,
             market_data_service=market_data_service,
             session_service=session_service,
+            risk_service=risk_service,
         )
     finally:
         trade_service.close()
@@ -107,7 +112,7 @@ async def app_lifespan(server: FastMCP) -> AsyncIterator[AppContext]:
 mcp = FastMCP(
     "Moomoo Trading",
     lifespan=app_lifespan,
-    dependencies=["moomoo-api", "pandas"] 
+    dependencies=["moomoo-api", "pandas", "sqlalchemy"] 
 )
 
 # Import tools to register them
@@ -121,8 +126,9 @@ import argparse
 def main():
     """Entry point for the MCP server."""
     parser = argparse.ArgumentParser(description="Moomoo API MCP Server")
-    parser.add_argument("--daily-limit", type=float, help="Daily budget limit in currency.")
-    parser.add_argument("--daily-loss", type=float, help="Daily loss limit in currency.")
+    parser.add_argument("--daily-limit", type=str, help="Daily budget limit (e.g., 1000USD,500SGD).")
+    parser.add_argument("--daily-loss", type=str, help="Daily loss limit (e.g., 200USD).")
+    parser.add_argument("--global-limit", type=str, help="Persistent global budget limit (e.g., 5000USD).")
     # Extract known args and pass others to mcp.run (which uses click/typer)
     args, unknown = parser.parse_known_args()
 
@@ -130,6 +136,8 @@ def main():
         os.environ["MOOMOO_DAILY_LIMIT"] = str(args.daily_limit)
     if args.daily_loss is not None:
         os.environ["MOOMOO_DAILY_LOSS"] = str(args.daily_loss)
+    if args.global_limit is not None:
+        os.environ["GLOBAL_LIMIT"] = str(args.global_limit)
 
     # Note: FastMCP.run() handles stdio/server startup
     # We pass empty list to run if we parsed our own args to avoid conflicts

@@ -64,6 +64,24 @@ class RiskManagementService:
     def _get_session(self) -> Session:
         return self.SessionLocal()
 
+    def parse_multi_currency_string(self, val: str) -> Dict[str, float]:
+        """Parse string like '1000USD,500SGD' into {'USD': 1000.0, 'SGD': 500.0}."""
+        if not val:
+            return {}
+        
+        import re
+        limits = {}
+        # Support both comma and space separators
+        parts = re.split(r'[,\s]+', val.strip())
+        for part in parts:
+            # Match number followed by optional letters (currency)
+            match = re.match(r'([\d.]+)([A-Z]*)', part.upper())
+            if match:
+                amount = float(match.group(1))
+                currency = match.group(2) or "DEFAULT"
+                limits[currency] = amount
+        return limits
+
     def sync_limits(self, account_id: str, limit_configs: Dict[str, Dict[str, float]]):
         """
         Sync limits from environment/CLI args.
@@ -192,11 +210,14 @@ class RiskManagementService:
                     account_id=account_id, currency=currency, type=LimitType.GLOBAL
                 ).first()
                 if global_limit:
-                    # Replenish cost basis + profit (but profit only restores what was spent)
-                    # Actually, requirements say: restore cost basis, and potentially profit up to cap.
-                    # Simplified: if we spent X and get back Y, we reduce 'spent' by Y.
-                    # But 'spent' cannot go below 0.
+                    # Replenish cost basis + realized_p_l (gross proceeds)
+                    # Requirement: 'spent' amount tracks how much of the budget is currently out.
+                    # Buying increases spent. Selling decreases spent.
+                    # Gross proceeds = cost_basis + realized_p_l
                     replenishment = cost_basis + realized_p_l
+                    
+                    # We reduce 'spent' by the replenishment amount.
+                    # But 'spent' cannot go below 0 (meaning we can't exceed original cap).
                     global_limit.spent = max(0.0, global_limit.spent - replenishment)
 
                 # Update Daily Loss (if realized_p_l is negative, it increases 'spent' loss)
