@@ -462,26 +462,7 @@ class TradeService:
                     f"Order blocked by risk limits. Status: {status}"
                 )
 
-        ret, data = self.trade_ctx.place_order(
-            price=price,
-            qty=qty,
-            code=code,
-            trd_side=trd_side,
-            order_type=order_type,
-            time_in_force=time_in_force,
-            adjust_limit=adjust_limit,
-            aux_price=aux_price,
-            trail_type=trail_type,
-            trail_value=trail_value,
-            trail_spread=trail_spread,
-            trd_env=trd_env,
-            acc_id=acc_id,
-            remark=remark,
-        )
-        if ret != RET_OK:
-            raise RuntimeError(f"place_order failed: {data}")
-
-        # Logging: Record successful transaction in persistent DB
+        # Pre-record transaction to lock funds in persistent DB
         self.risk_service.record_transaction(
             account_id=str(acc_id),
             ticker=code,
@@ -489,6 +470,44 @@ class TradeService:
             price=price,
             quantity=qty
         )
+
+        try:
+            ret, data = self.trade_ctx.place_order(
+                price=price,
+                qty=qty,
+                code=code,
+                trd_side=trd_side,
+                order_type=order_type,
+                time_in_force=time_in_force,
+                adjust_limit=adjust_limit,
+                aux_price=aux_price,
+                trail_type=trail_type,
+                trail_value=trail_value,
+                trail_spread=trail_spread,
+                trd_env=trd_env,
+                acc_id=acc_id,
+                remark=remark,
+            )
+            if ret != RET_OK:
+                # Rollback risk limits if API call specifically returned error
+                self.risk_service.rollback_transaction(
+                    account_id=str(acc_id),
+                    ticker=code,
+                    action=trd_side,
+                    price=price,
+                    quantity=qty
+                )
+                raise RuntimeError(f"place_order failed: {data}")
+        except Exception:
+            # Rollback on any exception (network, etc)
+            self.risk_service.rollback_transaction(
+                account_id=str(acc_id),
+                ticker=code,
+                action=trd_side,
+                price=price,
+                quantity=qty
+            )
+            raise
 
         records = data.to_dict("records")
         return records[0] if records else {}

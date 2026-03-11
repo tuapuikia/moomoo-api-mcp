@@ -107,3 +107,31 @@ def test_rollback_on_api_failure(trade_service, risk_service, mock_trade_ctx):
     # Limit should NOT be spent if API failed (or rolled back)
     status = risk_service.get_status(acc_id)
     assert status["GLOBAL"]["USD"]["spent"] == 0.0
+
+def test_multi_limit_enforcement(trade_service, risk_service, mock_trade_ctx):
+    acc_id = 12345
+    risk_service.sync_limits(acc_id, {
+        "GLOBAL": {"USD": 1000.0},
+        "DAILY_BUDGET": {"USD": 200.0}
+    })
+    
+    # 1. Buy 150 USD - should pass
+    df = pd.DataFrame([{"order_id": "125", "order_status": "SUBMITTED"}])
+    mock_trade_ctx.place_order.return_value = (0, df)
+    trade_service.place_order("US.AAPL", 150.0, 1, "BUY", acc_id=acc_id)
+    
+    # 2. Try to buy another 100 USD - should fail due to DAILY_BUDGET (even though GLOBAL has space)
+    with pytest.raises(RuntimeError, match="Order blocked by risk limits"):
+        trade_service.place_order("US.AAPL", 100.0, 1, "BUY", acc_id=acc_id)
+    
+    # 3. Hit DAILY_LOSS limit
+    risk_service.sync_limits(acc_id, {
+        "DAILY_LOSS": {"USD": 50.0}
+    })
+    # Record a loss of 60
+    risk_service.record_transaction(acc_id, "US.TSLA", "BUY", 100.0, 1)
+    risk_service.record_transaction(acc_id, "US.TSLA", "SELL", 40.0, 1) # Loss 60
+    
+    # Try to buy 10 USD - should fail due to DAILY_LOSS
+    with pytest.raises(RuntimeError, match="Order blocked by risk limits"):
+        trade_service.place_order("US.AAPL", 10.0, 1, "BUY", acc_id=acc_id)

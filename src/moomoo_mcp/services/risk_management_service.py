@@ -227,6 +227,42 @@ class RiskManagementService:
         finally:
             session.close()
 
+    def rollback_transaction(self, account_id: str, ticker: str, action: str, price: float, quantity: int):
+        """
+        Reverse the effects of a recorded transaction (e.g., if API call fails).
+        Only supports 'BUY' rollback for now (returning funds to limit and removing inventory).
+        """
+        if action.upper() != "BUY":
+            return # Only BUY requires rollback of 'spent' funds for now
+
+        account_id = str(account_id)
+        currency = self._get_currency_from_ticker(ticker)
+        session = self._get_session()
+        try:
+            amount = price * quantity
+            # 1. Restore Limits
+            limits = session.query(Limit).filter(
+                Limit.account_id == account_id,
+                Limit.currency == currency,
+                Limit.type.in_([LimitType.GLOBAL, LimitType.DAILY_BUDGET])
+            ).all()
+            for l in limits:
+                l.spent = max(0.0, l.spent - amount)
+            
+            # 2. Revert Inventory
+            inv = session.query(AgentInventory).filter_by(account_id=account_id, ticker=ticker).first()
+            if inv:
+                if inv.qty <= quantity:
+                    session.delete(inv)
+                else:
+                    new_qty = inv.qty - quantity
+                    inv.avg_price = ((inv.qty * inv.avg_price) - amount) / new_qty
+                    inv.qty = new_qty
+            
+            session.commit()
+        finally:
+            session.close()
+
     def get_inventory(self, account_id: str) -> Dict[str, Any]:
         account_id = str(account_id)
         session = self._get_session()
