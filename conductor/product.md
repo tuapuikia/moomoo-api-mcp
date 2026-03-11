@@ -8,6 +8,8 @@ An open-source Model Context Protocol (MCP) server for the Moomoo trading platfo
 - Provide a bridge between AI agents and the Moomoo trading API.
 - Enable operations such as market data retrieval, account management, and trading.
 - **Persistent Risk Management**: Ensure automated trading is bounded by persistent, multi-currency global and daily limits.
+- **Flexible Connectivity**: Support both `stdio` and `HTTP/SSE` transport protocols for local and remote integrations.
+- **Containerized Deployment**: Provide official Docker support for streamlined deployment in varied environments.
 
 ## Security Requirements
 - **Absolute Safety:** The server must be rigorously reviewed to ensure it is completely safe to use.

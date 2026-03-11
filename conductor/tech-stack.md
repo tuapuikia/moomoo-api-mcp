@@ -12,6 +12,10 @@
 - **pandas:** Data manipulation and analysis library.
 - **sqlalchemy:** SQL toolkit and Object Relational Mapper for persistence.
 - **sqlite:** Lightweight, disk-based database for persistent risk management.
+- **starlette & uvicorn:** ASGI framework and server for HTTP SSE transport support.
+
+## Deployment
+- **Docker:** Official containerization support for the server.
 
 ## Testing & Linting
 - **pytest & pytest-asyncio:** Testing frameworks for synchronous and asynchronous code.
