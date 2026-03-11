@@ -1,7 +1,7 @@
 # Implementation Plan: Docker Compose Integration
 
 ## Phase 1: Environment and Compose Scaffold
-- [ ] Task: Create `.env.example` with all supported environment variables and documentation.
+- [x] Task: Create `.env.example` with all supported environment variables and documentation. [43b392d]
 - [ ] Task: Create the initial `docker-compose.yml` file.
     - [ ] Define the `mcp-server` service using the `moomoo-api-mcp` image.
     - [ ] Implement `network_mode: host` for gateway access.
