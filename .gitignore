@@ -101,3 +101,4 @@ debug.log
 /simulate_init.py
 /test_overlimit.py
 /verify_limits.py
+/logs/Log
